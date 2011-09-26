@@ -1,0 +1,53 @@
+name:           crypto-api-tests
+version:        0.1
+license:        BSD3
+license-file:   LICENSE
+copyright:      Thomas DuBuisson <thomas.dubuisson@gmail.com>
+author:         Thomas DuBuisson <thomas.dubuisson@gmail.com>
+maintainer:     Thomas DuBuisson <thomas.dubuisson@gmail.com>
+description:    A generic interface for cryptographic operations,
+                platform independent quality RNG, property tests
+                and known-answer tests (KATs) for common algorithms,
+                and a basic benchmark infrastructure.
+
+                Maintainers of hash and cipher implementations are
+                encouraged to add instances for the classes defined
+                in Crypto.Classes.  Crypto users are similarly
+                encouraged to use the interfaces defined in the Classes
+                module.
+
+                Any concepts or functions of general use to more than
+                one cryptographic algorithm (ex: padding) is within
+                scope of this package.
+synopsis:       A generic interface for cryptographic operations
+category:       Data, Cryptography
+homepage:       http://trac.haskell.org/crypto-api/wiki
+bug-reports:    http://trac.haskell.org/crypto-api/report/1
+stability:      stable
+build-type:     Simple
+cabal-version:  >= 1.6
+tested-with:    GHC == 6.12.1
+data-files:
+         Test/KAT_AES/*.txt
+       , Test/KAT_SHA/*.txt
+       , Test/KAT_HMAC/*.txt
+       , Test/KAT_TWOFISH/*.TXT
+extra-source-files:
+         Test/KAT_AES/*.txt
+       , Test/KAT_SHA/*.txt
+       , Test/KAT_HMAC/*.txt
+       , Test/KAT_TWOFISH/*.TXT
+
+
+Library
+  build-depends: base >= 4 && < 5, QuickCheck >= 2.3 && < 2.5, 
+                 directory >= 1.0.1.0 && < 1.2, filepath, crypto-api, cereal, bytestring
+  ghc-options:
+  hs-source-dirs:
+  exposed-modules: Test.Crypto, Test.AES, Test.SHA, Test.HMAC, Test.ParseNistKATs, Test.TwoFish
+  other-modules: Paths_crypto_api_tests
+
+source-repository head
+    type:     git
+    location: unk
+
