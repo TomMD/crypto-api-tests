@@ -5,21 +5,12 @@ license-file:   LICENSE
 copyright:      Thomas DuBuisson <thomas.dubuisson@gmail.com>
 author:         Thomas DuBuisson <thomas.dubuisson@gmail.com>
 maintainer:     Thomas DuBuisson <thomas.dubuisson@gmail.com>
-description:    A generic interface for cryptographic operations,
-                platform independent quality RNG, property tests
-                and known-answer tests (KATs) for common algorithms,
-                and a basic benchmark infrastructure.
-
-                Maintainers of hash and cipher implementations are
-                encouraged to add instances for the classes defined
-                in Crypto.Classes.  Crypto users are similarly
-                encouraged to use the interfaces defined in the Classes
-                module.
-
-                Any concepts or functions of general use to more than
-                one cryptographic algorithm (ex: padding) is within
-                scope of this package.
-synopsis:       A generic interface for cryptographic operations
+description:    A test framework for hash and cipher operations using
+                the crypto-api interface.  Known answer tests (KATs)
+                for common cryptographic algorithms are included.
+                Patches welcome (both adding KATs for more algorithms
+                or property tests for classes of algorithms).
+synopsis:       A test framework and KATs for cryptographic operations.
 category:       Data, Cryptography
 homepage:       http://trac.haskell.org/crypto-api/wiki
 bug-reports:    http://trac.haskell.org/crypto-api/report/1

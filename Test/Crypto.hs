@@ -27,6 +27,8 @@ module Test.Crypto
 	, makeHashPropTests
 	-- * Utils
 	, hexStringToBS
+	-- * Re-exported
+        , defaultMain
 	) where
 
 import Test.QuickCheck
@@ -43,7 +45,7 @@ import Numeric (readHex)
 import Control.Arrow (first,second)
 
 import Test.HUnit.Base (assertEqual)
-import Test.Framework (Test, testGroup)
+import Test.Framework (Test, testGroup, defaultMain)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework.Providers.HUnit (testCase)
 
