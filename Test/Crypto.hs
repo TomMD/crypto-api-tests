@@ -222,11 +222,12 @@ prop_ECBStrictLazyEq k kBS msg = goodKey k kBS ==>
 	    ptLazy   = unEcb key msg'
 	in ctStrict == l2b ctLazy && ptStrict == l2b ptLazy
 
--- | Build test groups of basic tests if @enc . dec == id@
--- and equality of operations on strict and lazy ByteStrings.
+-- | Build test groups for encrypt/decrypt identity and 
+-- equality of operations on strict and lazy ByteStrings.
 --
--- Admittedly, this conflates testing the algorithm
--- in question and testing the mode implementation in 'crypto-api'.
+-- Admittedly, these tests conflate testing the algorithm
+-- in question and testing the mode implementation in 'crypto-api',
+-- but more testing isn't exactly a bad thing.
 makeBlockCipherPropTests :: BlockCipher k => k -> [Test]
 makeBlockCipherPropTests k =
 	testGroup "Block Cipher tests (ident)"
