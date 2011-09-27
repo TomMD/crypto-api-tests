@@ -20,6 +20,11 @@ import System.FilePath (takeFileName, combine, (</>))
 import Paths_crypto_api_tests
 import Crypto.HMAC
 
+import Test.HUnit.Base (assertEqual)
+import Test.Framework (Test, testGroup)
+import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.Framework.Providers.HUnit (testCase)
+
 makeSHA1HMACTests :: Hash c d => d -> IO [Test]
 makeSHA1HMACTests d = getTests d "SHA1"
 
@@ -50,7 +55,7 @@ getTests d alg = do
             name i = "NistHMAC" ++ alg ++ "-" ++ (show i)
             chunkify bs = if B.length bs == 0 then [] else let (a,b) = B.splitAt 37 bs in a : chunkify b
             toLazy = L.fromChunks . chunkify
-            tests = [TK (strict key msg tl == mac && lazy key (toLazy msg) tl == mac) (name i) | (key,msg,mac,i,tl) <- katPairs]
+            tests = [testCase (name i) $ assertEqual (name i) (strict key msg tl, lazy key (toLazy msg) tl) (mac,mac) | (key,msg,mac,i,tl) <- katPairs]
         return tests
   where
   isLen :: String -> Properties -> Bool

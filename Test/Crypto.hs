@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ExistentialQuantification, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, ExistentialQuantification, ViewPatterns, NoMonomorphismRestriction #-}
 {- |
   Maintainer: Thomas.DuBuisson@gmail.com
   Stability: beta
@@ -21,20 +21,10 @@
 -}
 module Test.Crypto
 	(
-	-- * Test Infrastructure
-	  runTests
-	, Test(..)
-	-- * Hash KATs
-	, makeMD5Tests
 	-- * Block Cipher KATs
-	, makeBlockCipherPropTests
+	  makeBlockCipherPropTests
 	-- * Hash property tests
 	, makeHashPropTests
-	, prop_LazyStrictEqual
-	, prop_DigestLen
-	, prop_GetPutHash
-	, prop_BlockLengthIsByteAligned
-	, prop_OutputLengthIsByteAligned
 	-- * Utils
 	, hexStringToBS
 	) where
@@ -51,6 +41,11 @@ import Control.Monad (forM)
 import qualified Data.Serialize as Ser
 import Numeric (readHex)
 import Control.Arrow (first,second)
+
+import Test.HUnit.Base (assertEqual)
+import Test.Framework (Test, testGroup)
+import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.Framework.Providers.HUnit (testCase)
 
 instance Arbitrary B.ByteString where
     arbitrary = do
@@ -105,25 +100,14 @@ prop_BlockLengthIsByteAligned d = blockLength .::. d `rem` 8 == 0
 prop_OutputLengthIsByteAligned :: Hash c d => d -> Bool
 prop_OutputLengthIsByteAligned d = blockLength .::. d `rem` 8 == 0
 
--- |A Test can either be a quickcheck property (constructor 'T') or a
--- known answer test (aka KAT, constructor 'TK').  Known answer tests
--- are simply stored as their boolean result along with a test name.
-data Test = forall a. Testable a => T a String | TK Bool String
-
-instance Show Test where
-	show (T _ name)  = "Test    " ++ name
-	show (TK b name) = "KA Test " ++ name
-
-katToTest :: (Eq b) => KAT a b -> Test
-katToTest (K i f o s) = TK (f i == o) s
-
-makeHashPropTests :: Hash c d => d -> [Test]
+makeHashPropTests :: Hash c d => d -> Test
 makeHashPropTests d =
-	[ T (prop_LazyStrictEqual d) "LazyStrictEqual"
-	, T (prop_DigestLen d) "DigestLen"
-	, T (prop_GetPutHash d) "GetPutHash"
-	, T (prop_BlockLengthIsByteAligned d) "BlockLengthIsByteAligned"
-	, T (prop_OutputLengthIsByteAligned d) "OuputLengthIsByteAligned"
+	testGroup "Cryptographic Digest Property Tests"
+	[ testProperty "LazyStrictEqual" (prop_LazyStrictEqual d)
+	, testProperty "DigestLen" (prop_DigestLen d)
+	, testProperty "GetPutHash" (prop_GetPutHash d)
+	, testProperty "BlockLengthIsByteAligned"(prop_BlockLengthIsByteAligned d)
+	, testProperty "OutputLengthIsByteAligned"  (prop_OutputLengthIsByteAligned d)
 	]
 
 -- |some generic blockcipher tests
@@ -157,29 +141,27 @@ prop_ECBEncDecID k kBS msg = goodKey k kBS ==>
 	let key = bKey k kBS
 	in comparePadded key ecb' unEcb' msg
 
-prop_CBCEncDecID :: BlockCipher k => k -> B.ByteString -> B.ByteString -> B.ByteString -> Property
-prop_CBCEncDecID k kBS ivBS msg = goodKey k kBS && isRight (bIV k ivBS) ==>
+prop_BlockMode_EncDec_ID :: BlockCipher k =>
+                            (k -> IV k -> B.ByteString -> (B.ByteString, IV k)) -> -- enc mode
+                            (k -> IV k -> B.ByteString -> (B.ByteString, IV k)) -> -- dec mode
+                            k ->             -- The key type witness
+                            B.ByteString ->  -- The key material
+                            B.ByteString ->  -- The IV material
+                            B.ByteString ->  -- The message
+                            Property
+prop_BlockMode_EncDec_ID enc dec k kBS ivBS msg = goodKey k kBS && isRight (bIV k ivBS) ==>
 	let key = bKey k kBS
-	    Right iv  = bIV k ivBS
-	    msg' = padESPBlockSize key msg
-	    (ct,iv2) = cbc' key iv msg'
-	in unCbc' key iv ct == (msg', iv2)
-
-prop_CFBEncDecID :: BlockCipher k => k -> B.ByteString -> B.ByteString -> B.ByteString -> Property
-prop_CFBEncDecID k kBS ivBS msg =  goodKey k kBS && isRight (bIV k ivBS) ==>
-        let key = bKey k kBS
-            Right iv  = bIV k ivBS
+            Right iv = bIV k ivBS
             msg' = padESPBlockSize key msg
-            (ct,iv2) = cfb' key iv msg'
-	in unCfb' key iv ct == (msg', iv2)
+            (ct, iv2) = enc key iv msg'
+        in dec key iv ct == (msg', iv2)
 
-prop_OFBEncDecID ::  BlockCipher k => k -> B.ByteString -> B.ByteString -> B.ByteString -> Property
-prop_OFBEncDecID k kBS ivBS msg =  goodKey k kBS && isRight (bIV k ivBS) ==>
-        let key = bKey k kBS
-            Right iv  = bIV k ivBS
-            msg' = padESPBlockSize key msg
-            (ct,iv2) = ofb' key iv msg'
-        in unOfb' key iv ct == (msg', iv2)
+prop_CBCEncDecID = prop_BlockMode_EncDec_ID cbc' unCbc'
+prop_CFBEncDecID = prop_BlockMode_EncDec_ID cfb' unCfb'
+prop_OFBEncDecID = prop_BlockMode_EncDec_ID ofb' unOfb'
+prop_CTREncDecID = prop_BlockMode_EncDec_ID (ctr' incIV) (unCtr' incIV)
+
+-- FIXME siv tests
 
 takeBlockSize :: BlockCipher k => k -> L.ByteString -> L.ByteString
 takeBlockSize k bs = L.take (len - (len `rem` bLen)) bs
@@ -189,38 +171,32 @@ takeBlockSize k bs = L.take (len - (len `rem` bLen)) bs
 
 l2b = B.concat . L.toChunks
 
-prop_OFBStrictLazyEq :: BlockCipher k => k -> B.ByteString -> B.ByteString -> L.ByteString -> Property
-prop_OFBStrictLazyEq k kBS ivBS msg = goodKey k kBS && isRight (bIV k ivBS) ==>
+prop_StrictLazyEq :: BlockCipher k =>
+                     (k -> IV k -> B.ByteString -> (B.ByteString,IV k)) ->
+                     (k -> IV k -> L.ByteString -> (L.ByteString,IV k)) ->
+                     (k -> IV k -> B.ByteString -> (B.ByteString,IV k)) ->
+                     (k -> IV k -> L.ByteString -> (L.ByteString,IV k)) ->
+                     k -> 
+                     B.ByteString ->
+                     B.ByteString ->
+                     L.ByteString ->
+                     Property
+prop_StrictLazyEq enc' enc dec' dec k kBS ivBS msg = goodKey k kBS &&
+                                                     isRight (bIV k ivBS) ==>
 	let key = bKey k kBS
 	    Right iv = bIV k ivBS
 	    msg' = takeBlockSize k msg
-	    ctStrict = ofb' key iv (l2b msg')
-	    ctLazy   = ofb  key iv msg'
-	    ptStrict = unOfb' key iv (l2b msg')
-	    ptLazy   = unOfb key iv msg'
+	    ctStrict = enc' key iv (l2b msg')
+	    ctLazy   = enc  key iv msg'
+	    ptStrict = dec' key iv (l2b msg')
+	    ptLazy   = dec key iv msg'
 	in ctStrict == first l2b ctLazy && ptStrict == first l2b ptLazy
+                                      
 
-prop_CBCStrictLazyEq :: BlockCipher k => k -> B.ByteString -> B.ByteString -> L.ByteString -> Property
-prop_CBCStrictLazyEq k kBS ivBS msg = goodKey k kBS && isRight (bIV k ivBS) ==>
-	let key = bKey k kBS
-	    Right iv = bIV k ivBS
-	    msg' = takeBlockSize k msg
-	    ctStrict = cbc' key iv (l2b msg')
-	    ctLazy   = cbc  key iv msg'
-	    ptStrict = unCbc' key iv (l2b msg')
-	    ptLazy   = unCbc key iv msg'
-	in ctStrict == first l2b ctLazy && ptStrict == first l2b ptLazy
-
-prop_CFBStrictLazyEq :: BlockCipher k => k -> B.ByteString -> B.ByteString -> L.ByteString -> Property
-prop_CFBStrictLazyEq k kBS ivBS msg = goodKey k kBS && isRight (bIV k ivBS) ==>
-	let key = bKey k kBS
-	    Right iv = bIV k ivBS
-	    msg' = takeBlockSize k msg
-	    ctStrict = ofb' key iv (l2b msg')
-	    ctLazy   = ofb  key iv msg'
-	    ptStrict = unCfb' key iv (l2b msg')
-	    ptLazy   = unCfb key iv msg'
-	in ctStrict == first l2b ctLazy && ptStrict == first l2b ptLazy
+prop_OFBStrictLazyEq = prop_StrictLazyEq ofb' ofb unOfb' unOfb
+prop_CBCStrictLazyEq = prop_StrictLazyEq cbc' cbc unCbc' unCbc
+prop_CFBStrictLazyEq = prop_StrictLazyEq cfb' cfb unCfb' unCfb
+prop_CTRStrictLazyEq = prop_StrictLazyEq (ctr' incIV) (ctr incIV) (unCtr' incIV) (unCtr incIV)
 
 prop_ECBStrictLazyEq :: BlockCipher k => k -> B.ByteString -> L.ByteString -> Property
 prop_ECBStrictLazyEq k kBS msg = goodKey k kBS ==>
@@ -232,24 +208,22 @@ prop_ECBStrictLazyEq k kBS msg = goodKey k kBS ==>
 	    ptLazy   = unEcb key msg'
 	in ctStrict == l2b ctLazy && ptStrict == l2b ptLazy
 
-makeBlockCipherPropTests :: BlockCipher k => k -> [Test]
+-- | Build test groups of basic tests if @enc . dec == id@
+-- and equality of operations on strict and lazy ByteStrings.
+-- makeBlockCipherPropTests :: BlockCipher k => k -> [Test]
 makeBlockCipherPropTests k =
-	[ T (prop_ECBEncDecID k) "ECBEncDecID"
-	, T (prop_CBCEncDecID k) "CBCEncDecID"
-	, T (prop_CFBEncDecID k) "CFBEncDecID"
-	, T (prop_OFBEncDecID k) "CFBEncDecID"
-	, T (prop_ECBStrictLazyEq k) "ECBStrictLazyEq"
-	, T (prop_CBCStrictLazyEq k) "CBCStrictLazyEq"
-	, T (prop_CFBStrictLazyEq k) "CFBStrictLazyEq"
-	, T (prop_OFBStrictLazyEq k) "OFBStrictLazyEq"
-	]
-
-data KAT i o = K i (i -> o) o String
-
-runKATs :: (Eq o) => [KAT i o] -> Bool
-runKATs = all goodKAT
-  where
-  goodKAT (K i f o _) = f i == o
+	testGroup "Block Cipher tests (ident)"
+	[ testProperty "ECBEncDecID" (prop_ECBEncDecID k)
+	, testProperty "CBCEncDecID" (prop_CBCEncDecID k)
+	, testProperty "CFBEncDecID" (prop_CFBEncDecID k)
+	, testProperty "OFBEncDecID" (prop_OFBEncDecID k)
+	, testProperty "CTREncDecID" (prop_CTREncDecID k)] :
+	testGroup "Block Cipher tests (lazy/string bytestring equality)"
+	[ testProperty "ECBStringLazyEq" (prop_ECBStrictLazyEq k)
+	, testProperty "CBCStrictLazyEq" (prop_CBCStrictLazyEq k)
+	, testProperty "CFBStrictLazyEq" (prop_CFBStrictLazyEq k)
+	, testProperty "OFBStrictLazyEq" (prop_OFBStrictLazyEq k)
+        , testProperty "CTRStrictLazyEq" (prop_CTRStrictLazyEq k)] :[]
 
 -- *Known Answer Tests
 toD :: Hash c d => d -> String -> d
@@ -268,35 +242,3 @@ hexStringToBS (_:[]) = error "Not an even number of hex characters in input to h
 hexStringToBS (a:b:xs) = B.cons (rHex (a:b:[])) (hexStringToBS xs)
   where
   rHex = fst . head . readHex
-
-dogStr = "The quick brown fox jumps over the lazy dog"
-cogStr = "The quick brown fox jumps over the lazy cog"
-
-md5KATs :: Hash c d => d -> [KAT L.ByteString d]
-md5KATs d =
-	[ K "" hash (toD d "d41d8cd98f00b204e9800998ecf8427e") "md5KAT1"
-	, K "a" hash (toD d "0cc175b9c0f1b6a831c399e269772661") "md5KAT2"
-        , K "abc" hash (toD d "900150983cd24fb0d6963f7d28e17f72") "md5KAT3"
-	, K "message digest" hash (toD d "f96b697d7cb7938d525a2f31aaf161d0") "md5KAT4"
-	, K "abcdefghijklmnopqrstuvwxyz" hash (toD d "c3fcd3d76192e4007dfb496cca67e13b") "md5KAT5"
-	, K "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" hash (toD d "d174ab98d277d9f5a5611c2c9f419d9f") "md5KAT6"
-	, K "12345678901234567890123456789012345678901234567890123456789012345678901234567890" hash (toD d "57edf4a22be3c955ac49da2e2107b67a") "md5KAT7"
-	]
-
--- |Generic routine to construct a series of tests for any hash.  Used by the 'make[SHA,MD5]Tests routines.
-makeHashTests :: Hash c d => (d -> [KAT L.ByteString d]) -> d -> [Test]
-makeHashTests k d = map katToTest (k d) ++ makeHashPropTests d
-
-makeMD5Tests :: Hash c d => d -> [Test]
-makeMD5Tests = makeHashTests md5KATs
-
--- |Run a single test
-runTest :: Test -> IO ()
-runTest (T a s) = do
-    putStr ("prop_" ++ s ++ ": ")
-    quickCheck a
-runTest (TK b s) = putStrLn ("kat_" ++ s ++ ": " ++ show b)
-
--- |Run a list of tests
-runTests :: [Test] -> IO ()
-runTests = mapM_ runTest

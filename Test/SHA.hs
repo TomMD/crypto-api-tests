@@ -20,20 +20,25 @@ import System.Directory (getDirectoryContents, doesFileExist)
 import System.FilePath (takeFileName, combine, (</>))
 import Paths_crypto_api_tests
 
+import Test.HUnit.Base (assertEqual)
+import Test.Framework (Test, testGroup)
+import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.Framework.Providers.HUnit (testCase)
+
 makeSHA1Tests :: Hash c d => d -> IO [Test]
-makeSHA1Tests d = liftM (++ makeHashPropTests d) (getTests d "SHA1")
+makeSHA1Tests d = liftM (++ [makeHashPropTests d]) (getTests d "SHA1")
 
 makeSHA224Tests :: Hash c d => d -> IO [Test]
-makeSHA224Tests d = liftM (++ makeHashPropTests d) (getTests d "SHA224")
+makeSHA224Tests d = liftM (++ [makeHashPropTests d]) (getTests d "SHA224")
 
 makeSHA256Tests :: Hash c d => d -> IO [Test]
-makeSHA256Tests d = liftM (++ makeHashPropTests d) (getTests d "SHA256")
+makeSHA256Tests d = liftM (++ [makeHashPropTests d]) (getTests d "SHA256")
 
 makeSHA384Tests :: Hash c d => d -> IO [Test]
-makeSHA384Tests d = liftM (++ makeHashPropTests d) (getTests d "SHA384")
+makeSHA384Tests d = liftM (++ [makeHashPropTests d]) (getTests d "SHA384")
 
 makeSHA512Tests :: Hash c d => d -> IO [Test]
-makeSHA512Tests d = liftM (++ makeHashPropTests d) (getTests d "SHA512")
+makeSHA512Tests d = liftM (++ [makeHashPropTests d]) (getTests d "SHA512")
 
 getTests :: Hash c d => d -> String -> IO [Test]
 getTests d prefix = do
@@ -49,7 +54,7 @@ getTests d prefix = do
 	    name i = "Nist" ++ prefix ++ "-" ++ (show i)
 	    chunkify bs = if B.length bs == 0 then [] else let (a,b) = B.splitAt 37 bs in a : chunkify b
 	    toLazy = L.fromChunks . chunkify
-	    tests = [TK (strict msg == md && lazy (toLazy msg) == md) (name cnt) | (msg,md) <- katPairs | cnt <- [1..]]
+	    tests = [testCase (name cnt) $ assertEqual (name cnt) (strict msg, lazy (toLazy msg)) (md,md) | (msg,md) <- katPairs | cnt <- [1..]]
 	return tests
 
 hashNistTestToPairs :: NistTest -> Maybe (B.ByteString,B.ByteString)

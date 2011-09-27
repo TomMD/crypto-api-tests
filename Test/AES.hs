@@ -1,4 +1,4 @@
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
 module Test.AES
 	( makeAESTests
 	) where
@@ -15,6 +15,10 @@ import System.Directory (getDirectoryContents, doesFileExist)
 import System.FilePath (takeFileName, combine, dropExtension, (</>))
 import Test.Crypto
 import Test.ParseNistKATs
+
+import Test.HUnit.Base (assertEqual)
+import Test.Framework (Test, testGroup)
+import Test.Framework.Providers.HUnit (testCase)
 
 -- |Based on NIST KATs, build a list  of Tests for the instantiated AES algorithm.
 -- e.g. @runTests $ makeAESTests (undefined :: AES128)@
@@ -84,15 +88,15 @@ testToKatBasic t f enc ek name = do
             ptBS = hexStringToBS pt
 	    nm   = name ++ "-" ++ cnt
         if enc
-            then return (TK (f realKey ptBS == ctBS) nm)
-            else return (TK (f realKey ctBS == ptBS) nm)
+            then return $ testCase nm $ assertEqual nm (f realKey ptBS) ctBS
+            else return $ testCase nm $ assertEqual nm (f realKey ctBS) ptBS
 
 isEnc :: String -> Bool
 isEnc str | null str = False
           | last str == 'e' = True
           | otherwise = False
 
--- Based o nthe name of the KAT file
+-- Based on the name of the KAT file
 -- obtain the mode function and a boolean indicating if the test is
 -- for encryption (True) or decryption (False).
 funcAndBool x = (sigToF x, isEnc x)

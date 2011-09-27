@@ -40,14 +40,16 @@ extra-source-files:
 
 
 Library
-  build-depends: base >= 4 && < 5, QuickCheck >= 2.3 && < 2.5, 
-                 directory >= 1.0.1.0 && < 1.2, filepath, crypto-api, cereal, bytestring
+  build-depends: base >= 4 && < 5, test-framework-quickcheck2 >= 0.2,
+                 directory >= 1.0.1.0 && < 1.2, filepath, crypto-api,
+                 cereal, bytestring, test-framework >= 0.4,
+                 test-framework-hunit >= 0.2, HUnit, QuickCheck >= 2.4
   ghc-options:
   hs-source-dirs:
-  exposed-modules: Test.Crypto, Test.AES, Test.SHA, Test.HMAC, Test.ParseNistKATs, Test.TwoFish
+  exposed-modules: Test.Crypto, Test.AES, Test.SHA, Test.HMAC, Test.ParseNistKATs, Test.TwoFish, Test.MD5
   other-modules: Paths_crypto_api_tests
 
 source-repository head
     type:     git
-    location: unk
+    location: https://github.com/TomMD/crypto-api-tests
 
