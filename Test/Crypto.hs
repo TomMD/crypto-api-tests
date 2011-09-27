@@ -102,6 +102,18 @@ prop_BlockLengthIsByteAligned d = blockLength .::. d `rem` 8 == 0
 prop_OutputLengthIsByteAligned :: Hash c d => d -> Bool
 prop_OutputLengthIsByteAligned d = blockLength .::. d `rem` 8 == 0
 
+-- |Construct a test group to check common hash properties.
+-- Properties include:
+--
+--    * Operating on lazy bytestrings obtains the same result as on strict bytestrings.
+--
+--    * The length of the digest (instance definition) matches the Serialize definition.
+--
+--    * encode . decode == id
+--
+--    * Hash block length is byte aligned (the 'crypto-api' operations require this!)
+--
+--    * The digest (output) length is byte aligned (also needed by 'crypto-api')
 makeHashPropTests :: Hash c d => d -> Test
 makeHashPropTests d =
 	testGroup "Cryptographic Digest Property Tests"
@@ -212,7 +224,10 @@ prop_ECBStrictLazyEq k kBS msg = goodKey k kBS ==>
 
 -- | Build test groups of basic tests if @enc . dec == id@
 -- and equality of operations on strict and lazy ByteStrings.
--- makeBlockCipherPropTests :: BlockCipher k => k -> [Test]
+--
+-- Admittedly, this conflates testing the algorithm
+-- in question and testing the mode implementation in 'crypto-api'.
+makeBlockCipherPropTests :: BlockCipher k => k -> [Test]
 makeBlockCipherPropTests k =
 	testGroup "Block Cipher tests (ident)"
 	[ testProperty "ECBEncDecID" (prop_ECBEncDecID k)
