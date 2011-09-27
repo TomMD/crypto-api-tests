@@ -1,5 +1,5 @@
 {-# LANGUAGE ParallelListComp #-}
-module Test.MD5
+module Test.SHA
 	( makeSHA1Tests
 	, makeSHA224Tests
 	, makeSHA256Tests
