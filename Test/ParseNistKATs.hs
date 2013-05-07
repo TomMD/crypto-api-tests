@@ -39,7 +39,7 @@ module Test.ParseNistKATs
 
 import Data.Char (isSpace)
 import Data.Maybe (listToMaybe)
-import Control.Arrow (second)
+import Control.Arrow (first, second)
 
 type Properties = [(String, String)]
 type Record = (String, String)
@@ -63,11 +63,13 @@ getCategory delim ls =
         let (props,rest1) = break ((/= Just '[') . listToMaybe) ls
             (tests,rest2) = break ((== Just '[') . listToMaybe) rest1
         in ((map parseProp props, parseTests delim tests), rest2)
-parseProp = second (drop 1) . break (== '=') . filter (`notElem` "[]")
+parseProp = first trim . second trim . second (drop 1) . break (== '=') . filter (`notElem` "[]")
 parseTests :: String -> [String] -> [NistTest]
 parseTests delim = filter notNull . chunk ((== delim) . fst) . map parseRecord
 parseRecord = second (drop 1) . break (== '=') . filter (not . isSpace)
 notNull = not . null
+trim :: String -> String
+trim = dropWhile isSpace . (reverse . dropWhile isSpace . reverse)
 
 chunk :: (a -> Bool) -> [a] -> [[a]]
 chunk f xs = snd (go xs)
