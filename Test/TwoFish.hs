@@ -6,7 +6,7 @@ import Data.Maybe (fromJust)
 import Data.Maybe (maybeToList)
 import qualified Data.ByteString as B
 import Crypto.Classes
-import Crypto.Modes
+import Crypto.Types
 import qualified Data.Serialize as Ser
 import Test.Crypto
 import Control.Monad (forM, liftM, filterM)
@@ -45,7 +45,7 @@ buildTestFunc u "CBC_D_M" (_,rs) = do
 	i  <- lookup "I" rs
 	let k' = toKey k u
             name = "CBC-D-" ++ i
-	return $ testCase name $ assertEqual name (fst (unCbc' k' iv ct)) pt
+	return $ testCase name $ assertEqual name (fst (unCbc k' iv ct)) pt
 buildTestFunc u "CBC_E_M" (_,rs) = do
 	k <- lookupB "KEY" rs
 	Right iv <- liftM Ser.decode (lookupB "IV" rs)
@@ -54,10 +54,10 @@ buildTestFunc u "CBC_E_M" (_,rs) = do
 	i  <- lookup "I" rs
 	let k' = toKey k u
             name = "CBC-E-" ++ i
-	return $ testCase name $ assertEqual name (fst (cbc' k' iv pt)) ct
-buildTestFunc u "ECB_D_M" (_,rs) = buildTestBasic u "ECB-D" rs False unEcb'
-buildTestFunc u "ECB_E_M" (_,rs) = buildTestBasic u "ECB-E" rs True  ecb'
-buildTestFunc u "ECB_TLB" (_,rs) = (buildTestBasic u "ECB-TLB-E" rs True ecb')
+	return $ testCase name $ assertEqual name (fst (cbc k' iv pt)) ct
+buildTestFunc u "ECB_D_M" (_,rs) = buildTestBasic u "ECB-D" rs False unEcb
+buildTestFunc u "ECB_E_M" (_,rs) = buildTestBasic u "ECB-E" rs True  ecb
+buildTestFunc u "ECB_TLB" (_,rs) = (buildTestBasic u "ECB-TLB-E" rs True ecb)
 buildTestFunc u "ECB_VK" (ps,rs)  = do
 	pt <- lookupB "PT" ps
 	k  <- lookupB "KEY" rs
@@ -65,7 +65,7 @@ buildTestFunc u "ECB_VK" (ps,rs)  = do
 	i <- lookup "I" rs
 	let k' = toKey k u
             name = "ECB-E-VK" ++ i
-	return $ testCase name $ assertEqual name (ecb' k' pt) ct
+	return $ testCase name $ assertEqual name (ecb k' pt) ct
 buildTestFunc u "ECB_VT" (ps,rs)  = do
 	k <- lookupB "KEY" ps
 	pt <- lookupB "PT" rs
@@ -73,7 +73,7 @@ buildTestFunc u "ECB_VT" (ps,rs)  = do
 	i <- lookup "I" rs
 	let k' = toKey k u
             name = "ECB-E-VT-" ++ i
-	return $ testCase name $ assertEqual name (ecb' k' pt) ct
+	return $ testCase name $ assertEqual name (ecb k' pt) ct
 
 buildTestBasic :: BlockCipher k => k -> String -> [Record] -> Bool -> (k -> B.ByteString -> B.ByteString) -> Maybe Test
 buildTestBasic u name rs b func = do

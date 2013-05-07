@@ -34,7 +34,8 @@ module Test.Crypto
 import Test.QuickCheck
 import Test.ParseNistKATs
 import Crypto.Classes
-import Crypto.Modes
+import Crypto.Types
+import qualified Crypto.Modes as M
 import Crypto.Padding
 import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Data.ByteString.Lazy as L
@@ -153,7 +154,7 @@ comparePadded k enc dec msg = unpadESP (dec k (enc k (padESPBlockSize k msg))) =
 prop_ECBEncDecID :: BlockCipher k => k -> B.ByteString -> B.ByteString -> Property
 prop_ECBEncDecID k kBS msg = goodKey k kBS ==>
 	let key = bKey k kBS
-	in comparePadded key ecb' unEcb' msg
+	in comparePadded key ecb unEcb msg
 
 prop_BlockMode_EncDec_ID :: BlockCipher k =>
                             (k -> IV k -> B.ByteString -> (B.ByteString, IV k)) -> -- enc mode
@@ -170,10 +171,10 @@ prop_BlockMode_EncDec_ID enc dec k kBS ivBS msg = goodKey k kBS && isRight (bIV 
             (ct, iv2) = enc key iv msg'
         in dec key iv ct == (msg', iv2)
 
-prop_CBCEncDecID = prop_BlockMode_EncDec_ID cbc' unCbc'
-prop_CFBEncDecID = prop_BlockMode_EncDec_ID cfb' unCfb'
-prop_OFBEncDecID = prop_BlockMode_EncDec_ID ofb' unOfb'
-prop_CTREncDecID = prop_BlockMode_EncDec_ID (ctr' incIV) (unCtr' incIV)
+prop_CBCEncDecID = prop_BlockMode_EncDec_ID cbc unCbc
+prop_CFBEncDecID = prop_BlockMode_EncDec_ID cfb unCfb
+prop_OFBEncDecID = prop_BlockMode_EncDec_ID ofb unOfb
+prop_CTREncDecID = prop_BlockMode_EncDec_ID ctr unCtr
 
 -- FIXME siv tests
 
@@ -190,7 +191,7 @@ prop_StrictLazyEq :: BlockCipher k =>
                      (k -> IV k -> L.ByteString -> (L.ByteString,IV k)) ->
                      (k -> IV k -> B.ByteString -> (B.ByteString,IV k)) ->
                      (k -> IV k -> L.ByteString -> (L.ByteString,IV k)) ->
-                     k -> 
+                     k ->
                      B.ByteString ->
                      B.ByteString ->
                      L.ByteString ->
@@ -207,19 +208,19 @@ prop_StrictLazyEq enc' enc dec' dec k kBS ivBS msg = goodKey k kBS &&
 	in ctStrict == first l2b ctLazy && ptStrict == first l2b ptLazy
                                       
 
-prop_OFBStrictLazyEq = prop_StrictLazyEq ofb' ofb unOfb' unOfb
-prop_CBCStrictLazyEq = prop_StrictLazyEq cbc' cbc unCbc' unCbc
-prop_CFBStrictLazyEq = prop_StrictLazyEq cfb' cfb unCfb' unCfb
-prop_CTRStrictLazyEq = prop_StrictLazyEq (ctr' incIV) (ctr incIV) (unCtr' incIV) (unCtr incIV)
+prop_OFBStrictLazyEq = prop_StrictLazyEq ofb M.ofb unOfb M.unOfb
+prop_CBCStrictLazyEq = prop_StrictLazyEq cbc M.cbc unCbc M.unCbc
+prop_CFBStrictLazyEq = prop_StrictLazyEq cfb M.cfb unCfb M.unCfb
+prop_CTRStrictLazyEq = prop_StrictLazyEq ctr (M.ctr incIV) unCtr (M.unCtr incIV)
 
 prop_ECBStrictLazyEq :: BlockCipher k => k -> B.ByteString -> L.ByteString -> Property
 prop_ECBStrictLazyEq k kBS msg = goodKey k kBS ==>
 	let key = bKey k kBS
 	    msg' = takeBlockSize k msg
-	    ctStrict = ecb' key (l2b msg')
-	    ctLazy   = ecb  key msg'
-	    ptStrict = unEcb' key (l2b msg')
-	    ptLazy   = unEcb key msg'
+	    ctStrict = ecb key (l2b msg')
+	    ctLazy   = M.ecb  key msg'
+	    ptStrict = unEcb key (l2b msg')
+	    ptLazy   = M.unEcb key msg'
 	in ctStrict == l2b ctLazy && ptStrict == l2b ptLazy
 
 -- | Build test groups for encrypt/decrypt identity and 

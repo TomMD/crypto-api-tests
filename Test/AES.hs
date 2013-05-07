@@ -5,7 +5,8 @@ module Test.AES
 
 import Control.Monad (forM, liftM, filterM)
 import Crypto.Classes
-import Crypto.Modes
+import Crypto.Types
+import qualified Crypto.Modes as M
 import qualified Data.ByteString as B
 import qualified Data.Serialize as Ser
 import Data.List (isInfixOf)
@@ -102,12 +103,12 @@ isEnc str | null str = False
 funcAndBool x = (sigToF x, isEnc x)
   where
   sigToF :: BlockCipher k => String -> Maybe (k -> IV k -> B.ByteString ->  (B.ByteString, IV k))
-  sigToF "CBCe" = Just cbc'
-  sigToF "CBCd" = Just unCbc'
-  sigToF "OFBe" = Just ofb'
-  sigToF "OFBd" = Just unOfb'
-  sigToF "CFBe" = Just cfb'
-  sigToF "CFBd" = Just unCfb'
+  sigToF "CBCe" = Just cbc
+  sigToF "CBCd" = Just unCbc
+  sigToF "OFBe" = Just ofb
+  sigToF "OFBd" = Just unOfb
+  sigToF "CFBe" = Just cfb
+  sigToF "CFBd" = Just unCfb
   sigToF _ = Nothing
 
 
