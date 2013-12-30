@@ -50,8 +50,8 @@ getTests d alg = do
             testsForAlg = filter (isLen l . fst) (concat recEs)
             nistTests = concatMap snd testsForAlg :: [NistTest]
             katPairs = concatMap (maybeToList . nistTestToPairs) nistTests
-            strict k m t = B.take t $ encode (hmac' (MacKey k) m `asTypeOf` d)
-            lazy   k m t = B.take t $ encode (hmac (MacKey k) m `asTypeOf` d)
+            strict k m t = B.take t $ encode (hmac (MacKey k) m `asTypeOf` d)
+            lazy   k m t = B.take t $ encode (hmacLazy (MacKey k) m `asTypeOf` d)
             name i = "NistHMAC" ++ alg ++ "-" ++ (show i)
             chunkify bs = if B.length bs == 0 then [] else let (a,b) = B.splitAt 37 bs in a : chunkify b
             toLazy = L.fromChunks . chunkify

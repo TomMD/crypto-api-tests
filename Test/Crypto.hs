@@ -35,7 +35,6 @@ import Test.QuickCheck
 import Test.ParseNistKATs
 import Crypto.Classes
 import Crypto.Types
-import qualified Crypto.Modes as M
 import Crypto.Padding
 import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Data.ByteString.Lazy as L
@@ -67,8 +66,8 @@ instance Arbitrary L.ByteString where
 prop_LazyStrictEqual :: Hash c d => d -> L.ByteString -> Bool
 prop_LazyStrictEqual d lps =
     let strict   = B.concat $ L.toChunks lps
-        f  = hashFunc d
-        f' = hashFunc' d
+        f  = hashFuncLazy d
+        f' = hashFunc d
     in f lps == f' strict
 
 -- |Verify the Serialize and Binary instances result
@@ -76,8 +75,8 @@ prop_LazyStrictEqual d lps =
 prop_DigestLen :: Hash c d => d -> L.ByteString -> Bool
 prop_DigestLen d lps =
         fromIntegral o == L.length h && o == B.length h'
-  where f = hashFunc d
-        f' = hashFunc' d
+  where f = hashFuncLazy d
+        f' = hashFunc d
         h = L.fromChunks [Ser.encode $ f lps]
         h' = Ser.encode . f' . B.concat . L.toChunks $ lps
         o = (outputLength `for` d) `div` 8
@@ -86,8 +85,8 @@ prop_DigestLen d lps =
 prop_GetPutHash :: Hash c d => d -> L.ByteString -> Bool
 prop_GetPutHash d lps = Ser.decode (Ser.encode h') == Right h'
   where
-  f = hashFunc d
-  f' = hashFunc' d
+  f = hashFuncLazy d
+  f' = hashFunc d
   h = f lps
   h' = f' . B.concat . L.toChunks $ lps
 
@@ -208,19 +207,19 @@ prop_StrictLazyEq enc' enc dec' dec k kBS ivBS msg = goodKey k kBS &&
         in ctStrict == first l2b ctLazy && ptStrict == first l2b ptLazy
                                       
 
-prop_OFBStrictLazyEq = prop_StrictLazyEq ofb M.ofb unOfb M.unOfb
-prop_CBCStrictLazyEq = prop_StrictLazyEq cbc M.cbc unCbc M.unCbc
-prop_CFBStrictLazyEq = prop_StrictLazyEq cfb M.cfb unCfb M.unCfb
-prop_CTRStrictLazyEq = prop_StrictLazyEq ctr (M.ctr incIV) unCtr (M.unCtr incIV)
+prop_OFBStrictLazyEq = prop_StrictLazyEq ofb ofbLazy unOfb unOfbLazy
+prop_CBCStrictLazyEq = prop_StrictLazyEq cbc cbcLazy unCbc unCbcLazy
+prop_CFBStrictLazyEq = prop_StrictLazyEq cfb cfbLazy unCfb unCfbLazy
+prop_CTRStrictLazyEq = prop_StrictLazyEq ctr ctrLazy unCtr unCtrLazy
 
 prop_ECBStrictLazyEq :: BlockCipher k => k -> B.ByteString -> L.ByteString -> Property
 prop_ECBStrictLazyEq k kBS msg = goodKey k kBS ==>
         let key = bKey k kBS
             msg' = takeBlockSize k msg
             ctStrict = ecb key (l2b msg')
-            ctLazy   = M.ecb  key msg'
+            ctLazy   = ecbLazy  key msg'
             ptStrict = unEcb key (l2b msg')
-            ptLazy   = M.unEcb key msg'
+            ptLazy   = unEcbLazy key msg'
         in ctStrict == l2b ctLazy && ptStrict == l2b ptLazy
 
 -- | Build test groups for encrypt/decrypt identity and 
