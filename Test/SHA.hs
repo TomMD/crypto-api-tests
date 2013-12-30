@@ -49,8 +49,8 @@ getTests d prefix = do
 	recEs <- mapM (liftM (parseCategories "Len") . readFile) interestingFiles
 	let nistTests = concatMap snd (concat recEs) :: [NistTest]
 	    katPairs = concatMap (maybeToList . hashNistTestToPairs) nistTests
-	    strict = encode . hashFunc d
-	    lazy   = encode . hashFuncLazy d
+	    strict = encode . hashFunc' d
+	    lazy   = encode . hashFunc d
 	    name i = "Nist" ++ prefix ++ "-" ++ (show i)
 	    chunkify bs = if B.length bs == 0 then [] else let (a,b) = B.splitAt 37 bs in a : chunkify b
 	    toLazy = L.fromChunks . chunkify

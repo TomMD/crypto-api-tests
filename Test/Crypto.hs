@@ -66,8 +66,8 @@ instance Arbitrary L.ByteString where
 prop_LazyStrictEqual :: Hash c d => d -> L.ByteString -> Bool
 prop_LazyStrictEqual d lps =
     let strict   = B.concat $ L.toChunks lps
-        f  = hashFuncLazy d
-        f' = hashFunc d
+        f  = hashFunc d
+        f' = hashFunc' d
     in f lps == f' strict
 
 -- |Verify the Serialize and Binary instances result
@@ -75,8 +75,8 @@ prop_LazyStrictEqual d lps =
 prop_DigestLen :: Hash c d => d -> L.ByteString -> Bool
 prop_DigestLen d lps =
         fromIntegral o == L.length h && o == B.length h'
-  where f = hashFuncLazy d
-        f' = hashFunc d
+  where f = hashFunc d
+        f' = hashFunc' d
         h = L.fromChunks [Ser.encode $ f lps]
         h' = Ser.encode . f' . B.concat . L.toChunks $ lps
         o = (outputLength `for` d) `div` 8
@@ -85,8 +85,8 @@ prop_DigestLen d lps =
 prop_GetPutHash :: Hash c d => d -> L.ByteString -> Bool
 prop_GetPutHash d lps = Ser.decode (Ser.encode h') == Right h'
   where
-  f = hashFuncLazy d
-  f' = hashFunc d
+  f = hashFunc d
+  f' = hashFunc' d
   h = f lps
   h' = f' . B.concat . L.toChunks $ lps
 
